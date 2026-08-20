@@ -1,11 +1,8 @@
 # Checklist de integración
 
-Puntos compartidos entre los 2 módulos. Los puntos específicos sobre el código de
-Fede están documentados aparte, en su propio repo
-(`tesis-sensor-node/docs/Notas de integración.md`, sin commitear todavía — su
-decisión si lo incorpora).
+Puntos compartidos entre los 2 módulos.
 
-Última actualización: 20/8/2026.
+Última actualización: 19/8/2026.
 
 | # | Punto | Dueño | Estado | Desbloquea |
 | --- | --- | --- | --- | --- |
@@ -20,7 +17,7 @@ decisión si lo incorpora).
 
 🔴 Sin empezar/bloqueado · 🟡 En progreso · ✅ Cerrado
 
-## Bugs reales encontrados al desplegar el broker (19-20/8, corregidos)
+## Bugs reales encontrados al desplegar el broker (corregidos)
 
 Documentados con detalle en `docs/PROGRESS.md` de `starlink-measurement-station` —
 resumen: el healthcheck no se autenticaba (loop infinito) y el `passwordfile` no era
@@ -41,8 +38,3 @@ hacer `chown` al UID correcto).
   `producer` o se descarta como diseño viejo?). No se tocó `docs/06_DER.md` ni
   `docs/07_API_REST.md` de `starlink-measurement-station` todavía — ver el detalle
   completo en su `docs/PROGRESS.md`, sección "Semántica source/producer... (19/8)".
-
-Ver también, del lado del código de Fede (no repetido acá):
-`tesis-sensor-node/docs/Notas de integración.md` — protocolo MQTT (v3.1.1 vs.
-v5.0 de ADR-09), la inversión `source`/`producer` de arriba, colisión
-`component`/`source` mock-vs-firmware.
