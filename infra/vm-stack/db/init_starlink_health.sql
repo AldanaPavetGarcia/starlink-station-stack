@@ -88,9 +88,16 @@ ALTER TABLE network_metrics SET (
 SELECT add_compression_policy('network_metrics',
     INTERVAL '7 days', if_not_exists => TRUE);
 
--- Retención de datos crudos (RF-23: al menos 6 meses)
+-- Retención de datos crudos -- 1 mes acá, NO 6 (RF-23 exige "al menos 6 meses",
+-- pero ese requisito aplica a la base fuente de verdad en la RPi5, que sí
+-- mantiene los 6 meses del bloque SQL original -- ver
+-- starlink-measurement-station/services/db/init_starlink_health.sql). Esta
+-- copia de la VM es solo para el front público (QR); reducido a 1 mes el
+-- 20/8/2026 por espacio en disco (la VM tiene 9.7GB totales). Aplicado en
+-- caliente vía remove_retention_policy()+add_retention_policy() en la DB ya
+-- corriendo -- este archivo solo importa si se redeploya desde cero.
 SELECT add_retention_policy('network_metrics',
-    INTERVAL '6 months', if_not_exists => TRUE);
+    INTERVAL '1 month', if_not_exists => TRUE);
 
 -- ── Tabla de tests detallados (iperf3/speedtest/traceroute/etc.) ──
 -- Fuera del alcance actual del extractor (solo telemetría pasiva vía gRPC,
