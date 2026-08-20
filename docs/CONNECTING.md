@@ -80,7 +80,14 @@ cd starlink-station-stack/infra/mosquitto-vm
 # generar el archivo de passwords (no se versiona, ver .gitignore)
 sudo docker run --rm -v "$(pwd)":/mosquitto/config eclipse-mosquitto:2.0.18 \
     mosquitto_passwd -c -b /mosquitto/config/passwordfile <usuario> <password>
-sudo chmod 600 passwordfile
+
+# OJO: no usar 600 acá -- el mount es de solo archivo (:ro) y el proceso
+# Mosquitto adentro del contenedor corre con un UID distinto al del host, así
+# que un 600 (dueño = tu usuario del host) lo deja ilegible para el contenedor
+# ("Unable to open pwfile", encontrado en el despliegue real del 19-20/8).
+# 644 (world-readable) es el workaround funcional hasta que se saque el :ro
+# de los mounts y se deje que el propio entrypoint haga el chown correcto.
+sudo chmod 644 passwordfile
 
 # .env local (no versionado, ver .env.example) -- mismas credenciales de arriba,
 # las usa el healthcheck del broker para autenticarse igual que cualquier cliente
