@@ -77,6 +77,12 @@ services:
       # `station-shared` (ver nota de arriba).
       MQTT_HOST: ${MQTT_BROKER_HOST:-station-mosquitto}
       MQTT_PORT: ${MQTT_BROKER_PORT:-1883}
+      # allow_anonymous false acá (a diferencia del broker local de
+      # starlink-measurement-station) -- requiere starlink-measurement-station
+      # >= PR #25 (set_credentials_if_present, ADR-20) para que el consumer
+      # sepa autenticarse.
+      MQTT_USERNAME: ${MQTT_CONSUMER_USERNAME:?falta MQTT_CONSUMER_USERNAME en .env}
+      MQTT_PASSWORD: ${MQTT_CONSUMER_PASSWORD:?falta MQTT_CONSUMER_PASSWORD en .env}
       STARLINK_DB_HOST: starlink_db
       STARLINK_DB_PORT: 5432
       STARLINK_DB_NAME: ${STARLINK_DB_NAME:-starlink_health}
