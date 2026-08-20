@@ -1,0 +1,29 @@
+# Corre SOLO en la VM de la cátedra (35.224.141.221) -- ver docs/01_ADR.md para el
+# porqué (RAM insuficiente ahí para la pila completa). El resto de los servicios
+# (DBs, consumer, backend, Grafana) sigue viviendo en el docker-compose.yml de
+# starlink-measurement-station, en la RPi5 -- no acá.
+#
+# `passwordfile` NO se versiona (ver .gitignore) -- generarlo antes del primer
+# `docker compose up`, instrucciones en docs/CONNECTING.md.
+
+services:
+  broker:
+    image: eclipse-mosquitto:2.0.18
+    container_name: station-mosquitto
+    restart: unless-stopped
+    ports:
+      - "${MQTT_EXTERNAL_PORT:-5883}:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./passwordfile:/mosquitto/config/passwordfile:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/#' -C 1 -i healthcheck || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:

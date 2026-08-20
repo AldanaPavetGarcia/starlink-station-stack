@@ -1,0 +1,24 @@
+# Checklist de integración
+
+Puntos compartidos entre los 2 módulos. Los puntos específicos sobre el código de
+Fede están documentados aparte, en su propio repo
+(`tesis-sensor-node/docs/NOTAS_INTEGRACION_ALDANA.md`, sin commitear todavía — su
+decisión si lo incorpora).
+
+Última actualización: 19/8/2026.
+
+| # | Punto | Dueño | Estado | Desbloquea |
+| --- | --- | --- | --- | --- |
+| 1 | Broker compartido en vez de instancias aisladas (`tesis-mosquitto` de Fede vs. `broker` de Aldana) | Ambos | 🟡 Diseñado (ADR-01 de este repo), sin desplegar en la VM todavía | Que los mensajes de los 2 módulos lleguen al mismo lugar |
+| 2 | Auth del broker de la VM (`allow_anonymous false` + `password_file`) | Ambos (decidir usuario/password) | 🟡 Config lista (`infra/mosquitto-vm/`), passwordfile sin generar | Paso 5 de `docs/CONNECTING.md` |
+| 3 | `MeteoDB` real (`starlink-measurement-station/src/consumer/db.py`) — hoy es un stub, no persiste | Aldana | 🔴 Sin empezar | Que las métricas de Fede lleguen a persistir en una DB de verdad |
+| 4 | Fede pushea/abre PR de los cambios locales post-prueba del 14/8 | Fede | 🟡 Pusheado en `feature/bme280-driver`, sin PR a `development` | Que el estado de su repo en GitHub sea el real |
+| 5 | Confirmar con el profesor persistencia/recursos de la VM si se decide correr algo más ahí en el futuro | Ambos | ✅ Confirmado 19/8 (persistente, cuenta compartida a propósito) | — |
+| 6 | Estación meteorológica externa a usar (`api_smn`/`api_open_meteo`/`api_owm`) | Fede | 🟡 3 candidatas investigadas, sin decisión final | Que Fede empiece el cliente de la API externa |
+
+🔴 Sin empezar · 🟡 En progreso / diseñado sin desplegar · ✅ Cerrado
+
+Ver también, del lado del código de Fede (no repetido acá):
+`tesis-sensor-node/docs/NOTAS_INTEGRACION_ALDANA.md` — protocolo MQTT (v3.1.1 vs.
+v5.0 de ADR-09), esquema `source`/`producer` del payload de métricas vs. el CHECK de
+`env_metrics.source`, colisión `component`/`source` mock-vs-firmware.
