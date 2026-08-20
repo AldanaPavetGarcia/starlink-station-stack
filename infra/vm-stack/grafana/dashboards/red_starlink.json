@@ -1,0 +1,150 @@
+{
+  "title": "Red Starlink",
+  "uid": "red-starlink",
+  "schemaVersion": 39,
+  "version": 2,
+  "editable": true,
+  "timezone": "utc",
+  "refresh": "1m",
+  "time": { "from": "now-6h", "to": "now" },
+  "tags": ["starlink", "network"],
+  "templating": {
+    "list": [
+      {
+        "name": "node_id",
+        "type": "query",
+        "label": "Nodo",
+        "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+        "query": "SELECT DISTINCT node_id FROM network_metrics ORDER BY node_id",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Latencia y jitter (ms)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", latency_ms, jitter_ms FROM network_metrics WHERE $__timeFilter(time) AND node_id IN ($node_id) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Packet loss (%)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", packet_loss_pct FROM network_metrics WHERE $__timeFilter(time) AND node_id IN ($node_id) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Throughput (Mbps)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "Mbits", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", throughput_down_bps / 1000000.0 AS throughput_down_mbps, throughput_up_bps / 1000000.0 AS throughput_up_mbps FROM network_metrics WHERE $__timeFilter(time) AND node_id IN ($node_id) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Satélites visibles, obstrucción y SNR bajo",
+      "description": "is_obstructed y snr_low (ADR-17) como series 0/1 superpuestas a satellite_count, para correlacionar visualmente caídas de satélites con eventos de obstrucción/señal baja (RF-33).",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", satellite_count, is_obstructed::int AS is_obstructed, snr_low::int AS snr_low FROM network_metrics WHERE $__timeFilter(time) AND node_id IN ($node_id) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "histogram",
+      "title": "Distribución de latencia",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", latency_ms FROM network_metrics WHERE $__timeFilter(time) AND node_id IN ($node_id) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Handovers por hora",
+      "description": "SUM(handover_count) por hora vía la Continuous Aggregate net_hourly (ADR-16), para detectar eventos de handover sin depender de heurísticas de picos de latencia.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT bucket AS \"time\", sum_handover_count AS handovers, sum_outage_duration_ms AS outage_ms FROM net_hourly WHERE $__timeFilter(bucket) AND node_id IN ($node_id) ORDER BY bucket"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Alineación de la antena",
+      "description": "tilt_angle_deg y apuntamiento real vs. deseado (ADR-18, dishGetStatus.alignmentStats), para correlacionar desalineación física (ej. viento) con picos de latencia/jitter.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 48 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "degree" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", tilt_angle_deg, boresight_azimuth_deg, desired_boresight_azimuth_deg, boresight_elevation_deg, desired_boresight_elevation_deg FROM network_metrics WHERE $__timeFilter(time) AND node_id IN ($node_id) ORDER BY time"
+        }
+      ]
+    }
+  ]
+}

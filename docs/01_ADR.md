@@ -55,3 +55,20 @@ internet hacia esa IP.
 - Si en el futuro la VM crece de recursos (o la cátedra da una más grande), este ADR
   se revisita — no es una decisión permanente, es la mejor opción con los ~1GB
   verificados hoy.
+
+### Actualización 20/8/2026 — pedido explícito del director de ampliar el alcance
+
+El director (Santiago) pidió expresamente un front público con QR ("Lo ideal sería que
+ahí tengas el mqtt sí, y ponele que el front estaría ideal […] que cualquiera pueda
+escanear y entrar a ver algunas métricas"), lo que requiere que los datos vivan en algo
+con IP pública — hoy solo la VM la tiene.
+
+Se preparó `infra/vm-stack/` (TimescaleDB tuneada para RAM baja + consumer + Grafana con
+acceso anónimo Viewer, sin buildear nada en la VM, todo desde imágenes ya publicadas en
+GHCR) **pero no se desplegó todavía** — la RAM sigue siendo la misma restricción de
+cuando se escribió este ADR (964MB total, ~500MB libres con el broker corriendo), y
+sumar esto son otros ~450-650MB, con riesgo real de OOM. Queda pendiente de que Santiago
+confirme si puede darle más recursos a la VM antes de arriesgar el broker que ya está
+funcionando (bridge desde la RPi5 verificado el mismo día, ver `starlink-measurement-station`
+ADR-20). La decisión de fondo de este ADR (**solo el broker corre hoy**) sigue vigente —
+esto es una ampliación de alcance en evaluación, no un cambio ya aplicado.

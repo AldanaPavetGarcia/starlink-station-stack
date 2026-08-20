@@ -1,0 +1,21 @@
+# ADR-13: datasources como código, cargados al arrancar el contenedor.
+# uid fijo para que el dashboard JSON (services/grafana/dashboards/) pueda
+# referenciarlo sin depender del uid autogenerado.
+apiVersion: 1
+
+datasources:
+  - name: starlink_health_db
+    uid: starlink_health_db
+    type: postgres
+    access: proxy
+    url: starlink_db:5432
+    database: ${STARLINK_DB_NAME}
+    user: ${STARLINK_DB_USER}
+    secureJsonData:
+      password: ${STARLINK_DB_PASSWORD}
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: true
+    isDefault: true
+    editable: false

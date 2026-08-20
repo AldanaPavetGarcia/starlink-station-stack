@@ -1,0 +1,126 @@
+# Pila de producción para la VM de la cátedra (35.224.141.221) -- Bloque B del
+# plan de integración del 20/8/2026. Referencia SOLO imágenes ya publicadas en
+# GHCR (multi-arch amd64/arm64, ver .github/workflows/publish.yml de
+# starlink-measurement-station) -- nada se buildea acá, la VM no necesita
+# toolchain de compilación.
+#
+# ⚠️ LISTO PERO NO EJECUTADO todavía (20/8/2026) -- la VM tiene 964MB de RAM
+# total / ~518MB libres con el broker de infra/mosquitto-vm/ corriendo. Este
+# compose suma TimescaleDB + Grafana + consumer, ~450-650MB adicionales:
+# entra muy justo, con riesgo real de OOM bajo carga. Pendiente de que
+# Santiago confirme si se puede subir la RAM de la VM antes de levantar esto
+# en producción -- ver docs/01_ADR.md (enmienda) y el mensaje pendiente de
+# mandarle. Mientras tanto, usar `TimescaleDB tuneada + swap` de más abajo
+# como red de seguridad si se decide probar igual con la RAM actual.
+#
+# No incluye el broker (infra/mosquitto-vm/docker-compose.yml, ya corriendo
+# por separado) ni el extractor real (`acquisition`, sigue en la RPi5 --
+# necesita alcanzar 192.168.100.1, la red de la antena, algo que la VM no
+# tiene).
+#
+# Red compartida con el broker: son dos proyectos docker-compose distintos
+# (carpetas distintas), así que por defecto Docker les da redes bridge
+# separadas y `station-mosquitto` no resolvería por nombre acá. Se declara
+# `station-shared` como red externa -- hay que crearla una sola vez
+# (`docker network create station-shared`) y sumarle esa misma red externa a
+# `infra/mosquitto-vm/docker-compose.yml` (agregar el bloque `networks` de
+# abajo ahí también) ANTES del primer `up` de este archivo. Eso implica un
+# restart breve del broker ya desplegado -- no se aplicó todavía a propósito
+# (ver nota de RAM arriba), es parte de "ejecutar cuando esté confirmado".
+
+services:
+  starlink_db:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: vm-starlink-health-db
+    restart: unless-stopped
+    # Tuning de RAM baja (ver nota de arriba) -- valores muy por debajo del
+    # default de TimescaleDB, pensados para convivir en <1GB total junto al
+    # resto de los servicios. Si Santiago confirma más RAM, subir
+    # shared_buffers primero (es el que más impacta performance).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=20
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - effective_cache_size=128MB
+    environment:
+      POSTGRES_DB: ${STARLINK_DB_NAME:-starlink_health}
+      POSTGRES_USER: ${STARLINK_DB_USER:-starlink_app}
+      POSTGRES_PASSWORD: ${STARLINK_DB_PASSWORD:?falta STARLINK_DB_PASSWORD en .env}
+    volumes:
+      - starlink_db_data:/var/lib/postgresql/data
+      - ./db/init_starlink_health.sql:/docker-entrypoint-initdb.d/init_starlink_health.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STARLINK_DB_USER:-starlink_app} -d ${STARLINK_DB_NAME:-starlink_health}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Sin `ports`: ADR-14 de starlink-measurement-station -- nunca expuesta,
+    # ni siquiera acá. Solo consumer/Grafana (misma red Docker) la alcanzan.
+
+  consumer:
+    image: ghcr.io/aldanapavetgarcia/starlink-consumer:latest
+    container_name: vm-starlink-consumer
+    restart: unless-stopped
+    depends_on:
+      starlink_db:
+        condition: service_healthy
+    environment:
+      # El broker vive en infra/mosquitto-vm/ (otro compose, misma VM) --
+      # nombre de contenedor resoluble porque ambos comparten la red externa
+      # `station-shared` (ver nota de arriba).
+      MQTT_HOST: ${MQTT_BROKER_HOST:-station-mosquitto}
+      MQTT_PORT: ${MQTT_BROKER_PORT:-1883}
+      STARLINK_DB_HOST: starlink_db
+      STARLINK_DB_PORT: 5432
+      STARLINK_DB_NAME: ${STARLINK_DB_NAME:-starlink_health}
+      STARLINK_DB_USER: ${STARLINK_DB_USER:-starlink_app}
+      STARLINK_DB_PASSWORD: ${STARLINK_DB_PASSWORD:?falta STARLINK_DB_PASSWORD en .env}
+    networks:
+      - default
+      - station-shared
+
+  grafana:
+    image: grafana/grafana-oss:11.3.1
+    container_name: vm-starlink-grafana
+    restart: unless-stopped
+    depends_on:
+      starlink_db:
+        condition: service_healthy
+    environment:
+      # Dos niveles de acceso (pedido del director, 20/8/2026): sesión
+      # anónima ve datos, no puede modificar nada (rol Viewer); login admin
+      # para administrar. Ver docs/01_ADR.md (enmienda) y ADR-14 de
+      # starlink-measurement-station (enmienda).
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?falta GRAFANA_ADMIN_PASSWORD en .env -- NO usar el valor de ejemplo de ningún repo}
+      # 8080 y 443 son los únicos puertos libres del firewall de la VM además
+      # del rango 5000-6000 que ya usa el broker (docs/01_ADR.md).
+      GF_SERVER_HTTP_PORT: "8080"
+      GF_SERVER_ROOT_URL: http://35.224.141.221:8080
+      STARLINK_DB_NAME: ${STARLINK_DB_NAME:-starlink_health}
+      STARLINK_DB_USER: ${STARLINK_DB_USER:-starlink_app}
+      STARLINK_DB_PASSWORD: ${STARLINK_DB_PASSWORD:?falta STARLINK_DB_PASSWORD en .env}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "8080:8080"
+
+volumes:
+  starlink_db_data:
+  grafana_data:
+
+networks:
+  station-shared:
+    external: true

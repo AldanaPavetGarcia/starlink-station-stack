@@ -30,7 +30,20 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    # networks: agregado 20/8/2026 para que ../vm-stack/ (consumer) resuelva
+    # este contenedor por nombre -- REQUIERE crear la red externa una sola
+    # vez ANTES de aplicar este archivo (`docker network create
+    # station-shared`), si no `docker compose up` va a fallar. Ver
+    # ../vm-stack/docker-compose.yml y docs/01_ADR.md (enmienda). No
+    # aplicado todavía -- pendiente de confirmación de RAM (ver ADR).
+    networks:
+      - default
+      - station-shared
 
 volumes:
   mosquitto_data:
   mosquitto_log:
+
+networks:
+  station-shared:
+    external: true

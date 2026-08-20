@@ -1,0 +1,14 @@
+# ADR-13: dashboards como código. Apunta a la carpeta montada en
+# /var/lib/grafana/dashboards (services/grafana/dashboards en el repo).
+apiVersion: 1
+
+providers:
+  - name: "Red Starlink"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

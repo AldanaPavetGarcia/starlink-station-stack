@@ -1,0 +1,116 @@
+{
+  "title": "Estación Starlink LIT — Vista pública",
+  "uid": "starlink-publico",
+  "description": "Dashboard de divulgación (QR) — métricas de la estación de medición Starlink del LIT/FCEFyN-UNC. Versión curada, sin detalle técnico interno; ver 'Red Starlink' para el dashboard completo (requiere login).",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "timezone": "utc",
+  "refresh": "1m",
+  "time": { "from": "now-24h", "to": "now" },
+  "tags": ["starlink", "publico"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Latencia promedio (24h)",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT AVG(latency_ms) FROM network_metrics WHERE $__timeFilter(time)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Disponibilidad (24h)",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 100.0 * SUM(CASE WHEN packet_loss_pct < 5 THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0) FROM network_metrics WHERE $__timeFilter(time)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Throughput bajada promedio (24h)",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT AVG(throughput_down_bps) FROM network_metrics WHERE $__timeFilter(time)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Latencia (ms)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "ms", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", latency_ms FROM network_metrics WHERE $__timeFilter(time) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Throughput (Mbps)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "Mbits", "min": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", throughput_down_bps/1e6 AS bajada_mbps, throughput_up_bps/1e6 AS subida_mbps FROM network_metrics WHERE $__timeFilter(time) ORDER BY time"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Obstrucción detectada",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 22 },
+      "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "starlink_health_db" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time AS \"time\", is_obstructed::int AS obstruido FROM network_metrics WHERE $__timeFilter(time) ORDER BY time"
+        }
+      ]
+    }
+  ]
+}
