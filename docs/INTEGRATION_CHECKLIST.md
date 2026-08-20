@@ -18,7 +18,20 @@ decisión si lo incorpora).
 
 🔴 Sin empezar · 🟡 En progreso / diseñado sin desplegar · ✅ Cerrado
 
+## Semántica `source`/`producer` de `env_metrics` — parcialmente cerrada (19/8)
+
+- **Confirmado**: `source` = identidad puntual (real/mock:
+  `mock_bme280`/`esp32_bme280`/`mock_api`/`api_open_meteo`/`api_owm`/`api_smn`),
+  `producer` = categoría (`antenna`/`sensor`/`api`). El código de Fede hoy los tiene
+  invertidos — ver `tesis-sensor-node/docs/Notas de integración.md` (sin commitear).
+- **Pendiente**: dónde va `producer` (¿adentro de `metrics`, como ya lo tiene Fede, o
+  afuera, a nivel de envelope, como `source_module` en `EnvPayloadIn` de
+  `docs/07_API_REST.md` §9.2?) y qué hacer con `source_module` (¿se renombra a
+  `producer` o se descarta como diseño viejo?). No se tocó `docs/06_DER.md` ni
+  `docs/07_API_REST.md` de `starlink-measurement-station` todavía — ver el detalle
+  completo en su `docs/PROGRESS.md`, sección "Semántica source/producer... (19/8)".
+
 Ver también, del lado del código de Fede (no repetido acá):
-`tesis-sensor-node/docs/NOTAS_INTEGRACION_ALDANA.md` — protocolo MQTT (v3.1.1 vs.
-v5.0 de ADR-09), esquema `source`/`producer` del payload de métricas vs. el CHECK de
-`env_metrics.source`, colisión `component`/`source` mock-vs-firmware.
+`tesis-sensor-node/docs/Notas de integración.md` — protocolo MQTT (v3.1.1 vs.
+v5.0 de ADR-09), la inversión `source`/`producer` de arriba, colisión
+`component`/`source` mock-vs-firmware.
