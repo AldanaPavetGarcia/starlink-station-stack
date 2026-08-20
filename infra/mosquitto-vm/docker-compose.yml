@@ -5,6 +5,10 @@
 #
 # `passwordfile` NO se versiona (ver .gitignore) -- generarlo antes del primer
 # `docker compose up`, instrucciones en docs/CONNECTING.md.
+#
+# `.env` (en esta misma carpeta, NO versionado -- ver .env.example) debe traer
+# MQTT_HEALTHCHECK_USER/MQTT_HEALTHCHECK_PASSWORD: el healthcheck necesita
+# autenticarse igual que cualquier otro cliente, ahora que allow_anonymous es false.
 
 services:
   broker:
@@ -13,13 +17,16 @@ services:
     restart: unless-stopped
     ports:
       - "${MQTT_EXTERNAL_PORT:-5883}:1883"
+    environment:
+      MQTT_HEALTHCHECK_USER: ${MQTT_HEALTHCHECK_USER}
+      MQTT_HEALTHCHECK_PASSWORD: ${MQTT_HEALTHCHECK_PASSWORD}
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./passwordfile:/mosquitto/config/passwordfile:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/#' -C 1 -i healthcheck || exit 1"]
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -u \"$$MQTT_HEALTHCHECK_USER\" -P \"$$MQTT_HEALTHCHECK_PASSWORD\" -t '$$SYS/#' -C 1 -i healthcheck || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

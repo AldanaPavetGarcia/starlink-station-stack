@@ -62,21 +62,33 @@ siempre en `.env`, nunca hardcodeada — así el mismo código sigue sirviendo p
 desarrollo local (broker propio) y para integración (broker de la VM) sin tocar una
 línea.
 
-## 5. Levantar el broker en la VM (una vez, o cuando haga falta recrearlo)
+## 5. Levantar el broker en la VM (ya hecho una vez, 19-20/8 — esto es referencia
+   para la próxima vez que haga falta recrearlo desde cero)
+
+La VM es Debian 13 (trixie) — el paquete se llama `docker-compose` (no
+`docker-compose-plugin`, no existe en sus repos), pero instala Compose v2.26.1 igual
+(`docker compose ...` funciona). El usuario `federico.isaia.soria` no está en el
+grupo `docker`, así que todo va con `sudo` por ahora.
 
 ```bash
 ssh -i <clave> federico.isaia.soria@35.224.141.221
 # (en la VM, primera vez únicamente)
-sudo apt-get update && sudo apt-get install -y docker.io docker-compose-plugin
-git clone <url-de-este-repo>
+sudo apt-get update && sudo apt-get install -y docker.io docker-compose
+git clone https://github.com/AldanaPavetGarcia/starlink-station-stack.git
 cd starlink-station-stack/infra/mosquitto-vm
 
 # generar el archivo de passwords (no se versiona, ver .gitignore)
-docker run --rm -v "$(pwd)":/mosquitto/config eclipse-mosquitto:2.0.18 \
+sudo docker run --rm -v "$(pwd)":/mosquitto/config eclipse-mosquitto:2.0.18 \
     mosquitto_passwd -c -b /mosquitto/config/passwordfile <usuario> <password>
+sudo chmod 600 passwordfile
 
-docker compose up -d
-docker compose logs -f   # confirmar que arrancó sin errores
+# .env local (no versionado, ver .env.example) -- mismas credenciales de arriba,
+# las usa el healthcheck del broker para autenticarse igual que cualquier cliente
+cp .env.example .env   # y completar MQTT_HEALTHCHECK_PASSWORD
+
+sudo docker compose up -d
+sudo docker compose ps    # confirmar "healthy", no solo "Up"
+sudo docker compose logs -f   # si algo no cierra
 ```
 
 ## 6. Verificar que llega

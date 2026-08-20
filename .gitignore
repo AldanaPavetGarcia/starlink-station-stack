@@ -1,2 +1,3 @@
 .env
+infra/mosquitto-vm/.env
 infra/mosquitto-vm/passwordfile
