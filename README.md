@@ -19,6 +19,8 @@ módulos individuales, cada uno evaluable por separado (modelo polyrepo, decidid
   integración en sí, no los módulos individuales).
 - `docs/INTEGRATION_CHECKLIST.md` — estado de los puntos de coordinación entre los 2
   módulos.
+- `docs/RPI5_PANTALLA_DSI.md` — runbook de la pantalla táctil oficial de 7" (DSI) en la
+  RPi5 compartida: diagnóstico, configuración y todos los comandos usados.
 
 ## Documentación de cada módulo
 
