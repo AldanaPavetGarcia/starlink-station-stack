@@ -19,6 +19,9 @@ módulos individuales, cada uno evaluable por separado (modelo polyrepo, decidid
   integración en sí, no los módulos individuales).
 - `docs/INTEGRATION_CHECKLIST.md` — estado de los puntos de coordinación entre los 2
   módulos.
+- `infra/rpi5-union/` — compose de integración en la RPi5: suma la pila meteo de Fede
+  (`meteo_data`, `meteo_consumer`, mocks) a la red de la pila Starlink de Aldana (ADR-02).
+- `docs/E2E_RPI5.md` — runbook de la prueba de punta a punta en la RPi5.
 
 ## Documentación de cada módulo
 

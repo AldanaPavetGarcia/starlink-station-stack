@@ -72,3 +72,52 @@ confirme si puede darle más recursos a la VM antes de arriesgar el broker que y
 funcionando (bridge desde la RPi5 verificado el mismo día, ver `starlink-measurement-station`
 ADR-20). La decisión de fondo de este ADR (**solo el broker corre hoy**) sigue vigente —
 esto es una ampliación de alcance en evaluación, no un cambio ya aplicado.
+
+## ADR-02 — Unión de las dos pilas: cada módulo dueño de su DB y su consumer
+
+| **Atributo** | **Valor** |
+| --- | --- |
+| **ID** | ADR-02 (station-stack) |
+| **Estado** | Propuesto |
+| **Fecha** | 26 oct 2026 — decidido por Aldana y Fede |
+| **Relacionado** | ADR-21 de `starlink-measurement-station` (contrato `env_metrics`) |
+
+### Contexto
+
+La persistencia ambiental había quedado prevista dentro de `starlink-measurement-station`
+(un consumer único con `MeteoDB` como stub). Eso mezclaba el código del dominio ambiental
+en el repo de Aldana, contra el modelo polyrepo del 11/8. Entre el 24 y el 25/10 Fede
+implementó su propia TimescaleDB y su propio consumer en `tesis-sensor-node`.
+
+### Decisión
+
+- **Cada módulo es dueño de su base y de su consumer.** Starlink: `starlink_health_db` +
+  `consumer` (repo de Aldana). Meteo: `meteo_data` + `meteo_consumer` (repo de Fede).
+- **La unión vive en este repo** (`infra/rpi5-union/`): un compose que suma la pila
+  meteo a la red Docker de la pila Starlink (`starlink-station-net`, nombre fijo). No
+  contiene código de ningún módulo.
+- **Un solo broker**: el de la pila de Aldana en la RPi5 (ya replica `starlink/#` a la
+  VM, ADR-20 de su repo). El compose de Fede trae su propio broker solo para desarrollo
+  aislado; en la unión no se levanta.
+- **Grafana y el backend** (repo de Aldana) leen `meteo_data` por `METEO_DB_*`. La
+  correlación red-clima es *Data Blending* en Grafana: ninguna base escribe en la otra.
+- **Contrato de `env_metrics`**: `source` ∈ {`real`, `mock`}, `producer` = productor
+  concreto, PK `(time, node_id, source, producer)`. El SQL autoritativo es el de Fede
+  (`infrastructure/meteo-db/init_meteo_data.sql`). Cierra la semántica que había quedado
+  abierta el 19/8.
+
+### Alternativas consideradas
+
+| Alternativa | Por qué se descartó |
+| --- | --- |
+| Meteo dentro del repo de Aldana (consumer compartido, Fede contribuye por PR) | Mezcla el código de los dos dominios en un repo individual; complica la evaluación por separado. |
+| Un compose único que haga `include` del compose de Aldana | Obliga a levantar y bajar las dos pilas juntas; con dos proyectos separados, cada módulo se reinicia sin tocar al otro. |
+| Construir todo desde imágenes de GHCR desde el día uno | Fede todavía no publica imágenes. Mientras tanto, el compose construye desde un clon local de su repo (`TESIS_SENSOR_NODE_DIR`) y se cambia a `image:` cuando existan. |
+
+### Consecuencias
+
+- El compose de Aldana fija el nombre de su red (`STARLINK_NETWORK_NAME`, default
+  `starlink-station-net`). El primer `up` después de este cambio recrea sus contenedores
+  sobre la red nueva, conservando los volúmenes.
+- Validado de punta a punta en una PC el 26/10/2026 (ver `docs/E2E_RPI5.md`). Falta la
+  corrida en la RPi5 con el ESP32 real.
