@@ -28,12 +28,12 @@ Las dos pilas levantadas en una PC con `mock_starlink` y los mocks de Fede:
 
 ## 0. Antes de ir al LIT
 
-Ramas que hay que usar mientras no estén mergeadas:
+Ramas a usar:
 
 | Repo | Rama |
 | --- | --- |
-| `starlink-measurement-station` | `feat/integracion-meteo-opcion-b` (o `main` si ya se mergeó) |
-| `starlink-station-stack` | `feat/compose-integracion` (o `main` si ya se mergeó) |
+| `starlink-measurement-station` | `main` (ADR-21 mergeado el 26/10) |
+| `starlink-station-stack` | `main` |
 | `tesis-sensor-node` | `feature/meteo-consumer` (o `development` si Fede ya la mergeó) |
 
 ## 1. Conectarse y ubicar la pila actual
@@ -55,7 +55,7 @@ lado de ella.
 ```bash
 cd $STARLINK
 git status                           # que no haya cambios locales sin commitear
-git fetch && git checkout feat/integracion-meteo-opcion-b && git pull
+git checkout main && git pull
 ```
 
 Agregar al `.env` (copiar los valores de `.env.example` si falta alguno):
@@ -91,7 +91,7 @@ cd $STARLINK/..
 git clone https://github.com/BlastNeos/tesis-sensor-node.git        # si no está
 git -C tesis-sensor-node fetch && git -C tesis-sensor-node checkout feature/meteo-consumer
 git clone https://github.com/AldanaPavetGarcia/starlink-station-stack.git   # si no está
-git -C starlink-station-stack fetch && git -C starlink-station-stack checkout feat/compose-integracion
+git -C starlink-station-stack checkout main && git -C starlink-station-stack pull
 
 cd starlink-station-stack/infra/rpi5-union
 cp .env.example .env      # TESIS_SENSOR_NODE_DIR=../../../tesis-sensor-node ya apunta al clon de al lado
@@ -158,10 +158,14 @@ series ambientales aparecen como `bme280 (real)`, `bme280 (mock)` u `open_meteo 
 cd $STARLINK/../starlink-station-stack/infra/rpi5-union
 docker compose --profile meteo-mocks down          # sin -v: conserva meteo_data
 
-cd $STARLINK
-git checkout main
-docker compose up -d --build broker acquisition starlink_db station_config_db consumer backend grafana
 ```
 
-En `main` el compose de Aldana todavía no tiene la red con nombre fijo: vuelve a la red
-por defecto, con los mismos volúmenes.
+La pila Starlink puede quedar como está: sin la pila meteo, `/health` reporta
+`db_meteo_data: down` y los paneles de correlación quedan vacíos. Para volver al
+estado anterior a ADR-21 (red por defecto, mismos volúmenes):
+
+```bash
+cd $STARLINK
+git checkout 80ca0d4
+docker compose up -d --build broker acquisition starlink_db station_config_db consumer backend grafana
+```
