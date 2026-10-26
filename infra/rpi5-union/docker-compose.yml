@@ -1,0 +1,106 @@
+# Compose de integración en la RPi5 (ADR-02 de este repo, ADR-21 de
+# starlink-measurement-station): suma la pila meteo de Fede a la red Docker de
+# la pila Starlink de Aldana. No contiene código de ningún módulo.
+#
+#   starlink-measurement-station/docker-compose.yml   (broker, consumer, starlink_db, backend, grafana...)
+#        └─ red "starlink-station-net" ◀── este compose se une a esa red
+#              ├─ meteo_db        (TimescaleDB de Fede, init SQL de su repo)
+#              ├─ meteo_consumer  (consumer de Fede: meteo/sensor/+, meteo/external/+)
+#              └─ mocks de Fede   (perfil "meteo-mocks", opcional)
+#
+# Un solo broker: el de la pila de Aldana ("broker" en la red compartida), que
+# ya replica starlink/# a la VM (ADR-20). El ESP32 publica a ese mismo broker
+# por WiFi (IP de la RPi5, puerto 1883).
+#
+# Mientras Fede no publique imágenes en GHCR, se construye desde un clon local
+# de su repo (TESIS_SENSOR_NODE_DIR). Cuando las publique, reemplazar cada
+# `build:` por `image: ghcr.io/blastneos/...:<tag>`.
+#
+# Uso (ver docs/E2E_RPI5.md):
+#   docker compose --env-file .env up -d --build
+#   docker compose --env-file .env --profile meteo-mocks up -d --build   # + mocks
+
+name: meteo-union
+
+services:
+  meteo_db:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: meteo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${METEO_DB_NAME:-meteo_data}
+      POSTGRES_USER: ${METEO_DB_USER:-meteo_app}
+      POSTGRES_PASSWORD: ${METEO_DB_PASSWORD:-meteo_dev_password}
+    volumes:
+      - meteo_db_data:/var/lib/postgresql/data
+      - ${TESIS_SENSOR_NODE_DIR:-../../../tesis-sensor-node}/infrastructure/meteo-db/init_meteo_data.sql:/docker-entrypoint-initdb.d/init_meteo_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${METEO_DB_USER:-meteo_app} -d ${METEO_DB_NAME:-meteo_data}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Sin `ports`: igual que starlink_db, no se expone al host (ADR-14).
+    # Grafana y el backend de Aldana la alcanzan como "meteo_db" en la red compartida.
+
+  meteo_consumer:
+    build:
+      context: ${TESIS_SENSOR_NODE_DIR:-../../../tesis-sensor-node}
+      dockerfile: services/meteo_consumer/Dockerfile
+    image: meteo-consumer:dev
+    container_name: meteo-consumer
+    restart: unless-stopped
+    depends_on:
+      meteo_db:
+        condition: service_healthy
+    environment:
+      MQTT_HOST: broker
+      MQTT_PORT: 1883
+      MQTT_QOS: 1
+      MQTT_CLIENT_ID: meteo-consumer
+      METEO_DB_HOST: meteo_db
+      METEO_DB_PORT: 5432
+      METEO_DB_NAME: ${METEO_DB_NAME:-meteo_data}
+      METEO_DB_USER: ${METEO_DB_USER:-meteo_app}
+      METEO_DB_PASSWORD: ${METEO_DB_PASSWORD:-meteo_dev_password}
+
+  # --- Mocks de Fede (perfil meteo-mocks) ------------------------------------
+  # Respaldo para la prueba E2E si el BME280 real no está disponible. Publican
+  # source="mock", así que conviven con el ESP32 real (source="real") sin
+  # chocar en la PK de env_metrics. TIME_WARP_FACTOR=1 para que los timestamps
+  # coincidan con la telemetría Starlink real en los paneles de correlación.
+  mock_bme280:
+    build:
+      context: ${TESIS_SENSOR_NODE_DIR:-../../../tesis-sensor-node}/mocks/bme280
+    image: mock-bme280:dev
+    container_name: mock-bme280
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: broker
+      MQTT_PORT: 1883
+      NODE_ID: ${NODE_ID:-lit-cordoba-01}
+      SENSOR_UID: bme280-mock-01
+      PUBLISH_INTERVAL_SECONDS: 60
+      TIME_WARP_FACTOR: 1
+    profiles: [meteo-mocks]
+
+  mock_open_meteo:
+    build:
+      context: ${TESIS_SENSOR_NODE_DIR:-../../../tesis-sensor-node}/mocks/open_meteo
+    image: mock-open-meteo:dev
+    container_name: mock-open-meteo
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: broker
+      MQTT_PORT: 1883
+      NODE_ID: ${NODE_ID:-lit-cordoba-01}
+      PUBLISH_INTERVAL_SECONDS: 900
+      TIME_WARP_FACTOR: 1
+    profiles: [meteo-mocks]
+
+networks:
+  default:
+    name: ${STARLINK_NETWORK_NAME:-starlink-station-net}
+    external: true
+
+volumes:
+  meteo_db_data:
